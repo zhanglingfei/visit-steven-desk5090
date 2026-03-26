@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2026-03-26T06:01:57.784790+00:00",
+    "session_id": "ed46efc9-2c94-410a-83f3-f0aa81341c30",
+    "username": "admin",
+    "command": "c"
+  },
+  {
+    "timestamp": "2026-03-26T06:01:57.786649+00:00",
+    "session_id": "ed46efc9-2c94-410a-83f3-f0aa81341c30",
+    "username": "admin",
+    "command": "d"
+  },
+  {
+    "timestamp": "2026-03-26T06:01:59.233455+00:00",
+    "session_id": "ed46efc9-2c94-410a-83f3-f0aa81341c30",
+    "username": "admin",
+    "command": "l"
+  },
+  {
+    "timestamp": "2026-03-26T06:01:59.334522+00:00",
+    "session_id": "ed46efc9-2c94-410a-83f3-f0aa81341c30",
+    "username": "admin",
+    "command": "s"
+  }
+]

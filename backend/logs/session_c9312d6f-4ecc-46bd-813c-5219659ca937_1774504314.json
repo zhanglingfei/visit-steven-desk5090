@@ -1,0 +1,8 @@
+[
+  {
+    "timestamp": "2026-03-26T05:51:52.702058+00:00",
+    "session_id": "c9312d6f-4ecc-46bd-813c-5219659ca937",
+    "username": "admin",
+    "command": "echo hello"
+  }
+]
