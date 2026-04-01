@@ -27,22 +27,38 @@ logger.addHandler(handler)
 class TerminalSecurity:
     """Security controls for terminal sessions."""
 
-    # Blocked commands (regex patterns)
+    # Blocked commands (regex patterns) - expanded to prevent bypasses
     BLOCKED_PATTERNS = [
-        r"rm\s+-rf\s+/",
+        # Destructive operations
+        r"rm\s+.*-rf.*\/",
+        r"rm\s+.*-fr.*\/",
+        r">\s*/dev/",
         r"dd\s+if=.*of=/dev/",
         r"mkfs\.",
         r"fdisk\s+/dev/",
-        r"wget.*\|.*bash",
-        r"curl.*\|.*bash",
-        r"curl.*\|.*sh",
-        r"nc\s+-l",
-        r"netcat\s+-l",
-        r"ncat\s+-l",
-        r"python\s+-m\s+http\.server",
-        r"python3\s+-m\s+http\.server",
-        r"ssh\s+.*@",
-        r"scp\s+.*:",
+        r"parted\s+/dev/",
+        # Remote code execution
+        r"wget.*\|.*ba?sh",
+        r"curl.*\|.*ba?sh",
+        r"fetch.*\|.*ba?sh",
+        # Backdoors / listeners
+        r"nc\s+.*-l",
+        r"netcat\s+.*-l",
+        r"ncat\s+.*-l",
+        r"socat\s+.*-l",
+        r"python\s+.*http\.server",
+        r"python3\s+.*http\.server",
+        r"php\s+.*-S",
+        # Tunneling / exfiltration (only block reverse tunnels, not normal SSH)
+        r"ssh\s+.*-R\s+",
+        r"ssh\s+.*-D\s+",
+        r"ssh\s+.*-L\s+",
+        # Shell escapes that could bypass filters
+        r"sh\s+-c.*rm",
+        r"bash\s+-c.*rm",
+        r"eval.*rm",
+        r"`.*rm",
+        r"\$\(.*rm",
     ]
 
     # Sensitive files that shouldn't be accessed

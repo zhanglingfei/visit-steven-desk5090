@@ -14,6 +14,17 @@ router = APIRouter()
 
 @router.websocket("/terminal")
 async def terminal_ws(websocket: WebSocket, token: str = Query(...)):
+    # Check Origin header to prevent CSWSH (Cross-Site WebSocket Hijacking)
+    origin = websocket.headers.get("origin", "")
+    allowed_origins = settings.allowed_origins.split(",")
+    if origin and not any(
+        origin.startswith(allowed.strip()) or
+        (allowed.strip().endswith('.') and origin.startswith(allowed.strip().rstrip('.')))
+        for allowed in allowed_origins
+    ):
+        await websocket.close(code=4003, reason="Origin not allowed")
+        return
+
     # Get client IP
     client_ip = websocket.client.host if websocket.client else "unknown"
 

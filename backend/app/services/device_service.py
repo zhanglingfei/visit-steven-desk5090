@@ -8,27 +8,60 @@ from app.services.auth_service import load_users, save_users
 
 
 def generate_device_fingerprint(user_agent: str, ip: str, headers: dict) -> str:
-    """Generate a unique device fingerprint based on browser characteristics."""
-    # Combine multiple factors for fingerprinting
+    """Generate a unique device fingerprint based on hardware/software characteristics.
+
+    Note: IP address is NOT included in the fingerprint - the same physical device
+    should be recognized regardless of network location. Browser version is also
+    excluded as it changes with updates.
+    """
+    # Extract stable components from user agent (OS, platform, browser family)
+    # Remove version numbers that change with updates
+    import re
+
+    # Parse user agent to extract stable parts only
+    # Example: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    # We keep: OS info, architecture, browser family (not version)
+
+    ua = user_agent or ""
+
+    # Extract OS and platform info (stable)
+    os_match = re.search(r'\(([^)]+)\)', ua)
+    os_info = os_match.group(1) if os_match else ""
+
+    # Extract browser family (without version)
+    browser_families = []
+    if 'Chrome' in ua or 'Chromium' in ua:
+        browser_families.append('Chrome')
+    if 'Firefox' in ua:
+        browser_families.append('Firefox')
+    if 'Safari' in ua and 'Chrome' not in ua:
+        browser_families.append('Safari')
+    if 'Edge' in ua:
+        browser_families.append('Edge')
+
+    browser_family = browser_families[0] if browser_families else "Unknown"
+
+    # Combine stable factors only - NO IP, NO browser version
+    # Normalize platform header - remove quotes as different browsers may send
+    # sec-ch-ua-platform as "Windows" or Windows
+    platform = headers.get("sec-ch-ua-platform", "").strip().strip('"')
     factors = [
-        user_agent,
-        ip,
-        headers.get("accept-language", ""),
-        headers.get("accept-encoding", ""),
-        headers.get("sec-ch-ua", ""),  # Browser brand/version
-        headers.get("sec-ch-ua-platform", ""),  # OS platform
+        os_info,  # e.g., "Windows NT 10.0; Win64; x64"
+        browser_family,  # e.g., "Chrome" (not "Chrome/120.0.0.0")
+        platform,  # OS platform (e.g., "Windows" without quotes)
     ]
     fingerprint_data = "|".join(factors)
     return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:32]
 
 
 def get_user_devices(username: str) -> list[dict]:
-    """Get all registered devices for a user."""
+    """Get all active registered devices for a user."""
     users = load_users()
     user = users.get(username)
     if not user:
         return []
-    return user.get("registered_devices", [])
+    devices = user.get("registered_devices", [])
+    return [d for d in devices if d.get("is_active", True)]
 
 
 def register_device(
@@ -68,7 +101,8 @@ def register_device(
         if device["fingerprint"] == fingerprint and device.get("is_active", True):
             # Update last used
             device["last_used"] = datetime.now(timezone.utc).isoformat()
-            device["ip_address"] = ip  # Update IP
+            # Note: We intentionally do NOT update IP - device identity is based on
+            # hardware/software characteristics, not network location
             save_users(users)
             return False, "Device already registered", device
 
@@ -131,6 +165,8 @@ def is_registered_device(username: str, user_agent: str, ip: str, headers: dict)
         if device["fingerprint"] == fingerprint and device.get("is_active", True):
             # Update last used
             device["last_used"] = datetime.now(timezone.utc).isoformat()
+            # Note: We intentionally do NOT update IP - device identity is based on
+            # hardware/software characteristics, not network location
             save_users(users)
             return True, device
 

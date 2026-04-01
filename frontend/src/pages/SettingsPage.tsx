@@ -45,9 +45,11 @@ export default function SettingsPage() {
       try {
         const { getMe } = await import('../api/auth');
         const user = await getMe();
+        console.log('[Settings] getMe response:', user);
         setHas2FA(user.has_2fa);
-      } catch {
-        // Ignore error
+      } catch (err: any) {
+        console.error('[Settings] Failed to fetch 2FA status:', err);
+        setError('Failed to load 2FA status. Please refresh the page.');
       }
     };
     check2FA();
@@ -62,8 +64,12 @@ export default function SettingsPage() {
       setDevices(response.data.devices || []);
       setDeviceLimit(response.data.max_devices || 5);
       setRequireRegisteredDevice(response.data.require_registered_device || false);
-    } catch (err) {
-      console.error('Failed to fetch devices:', err);
+    } catch (err: any) {
+      console.error('[Settings] Failed to fetch devices:', err);
+      // Don't overwrite existing error messages
+      if (!error) {
+        setError('Failed to load device list. Please refresh the page.');
+      }
     }
   };
 

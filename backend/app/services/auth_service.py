@@ -12,8 +12,39 @@ import qrcode
 from jose import JWTError, jwt
 from io import BytesIO
 import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from config import settings
+
+
+def _get_encryption_key() -> bytes:
+    """Derive encryption key from JWT secret."""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b'visit-steven-desk5090-static-salt',
+        iterations=100000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(settings.jwt_secret_key.encode()))
+    return key
+
+
+def encrypt_totp_secret(plaintext: str) -> str:
+    """Encrypt TOTP secret before storage."""
+    f = Fernet(_get_encryption_key())
+    return f.encrypt(plaintext.encode()).decode()
+
+
+def decrypt_totp_secret(ciphertext: str) -> str:
+    """Decrypt TOTP secret for verification."""
+    try:
+        f = Fernet(_get_encryption_key())
+        return f.decrypt(ciphertext.encode()).decode()
+    except Exception:
+        # If decryption fails, assume plaintext (migration case)
+        return ciphertext
 
 
 # Password policy requirements
@@ -61,9 +92,9 @@ def is_password_complex(password: str) -> bool:
 _login_attempts: dict[str, list[float]] = {}  # ip -> timestamps
 _username_failures: dict[str, int] = {}  # username -> consecutive failures
 _RATE_LIMIT_WINDOW = 60  # 1 minute window
-_RATE_LIMIT_MAX = 30  # 30 requests per minute (was 10)
-_LOCKOUT_THRESHOLD = 10  # 10 failed attempts before lockout (was 5)
-_LOCKOUT_DURATION = 60  # 1 minute lockout (was 300)
+_RATE_LIMIT_MAX = 5  # 5 requests per minute
+_LOCKOUT_THRESHOLD = 5  # 5 failed attempts before lockout
+_LOCKOUT_DURATION = 300  # 5 minute lockout
 
 # Session fingerprinting for anomaly detection
 _session_fingerprints: dict[str, dict] = {}  # username -> {ip, user_agent, timestamp}
@@ -275,7 +306,8 @@ def enable_2fa(username: str, secret: str, backup_codes: list[str]) -> bool:
     if username not in users:
         return False
 
-    users[username]["totp_secret"] = secret
+    # Encrypt TOTP secret before storage
+    users[username]["totp_secret"] = encrypt_totp_secret(secret)
     users[username]["backup_codes"] = hash_backup_codes(backup_codes)
     users[username]["2fa_enabled"] = True
     save_users(users)
@@ -337,8 +369,9 @@ def authenticate_with_2fa(username: str, password: str, totp_code: Optional[str]
     if not totp_code:
         return None, True  # Requires 2FA
 
-    # Verify TOTP code
-    secret = user.get("totp_secret")
+    # Verify TOTP code (decrypt if encrypted)
+    encrypted_secret = user.get("totp_secret")
+    secret = decrypt_totp_secret(encrypted_secret) if encrypted_secret else None
     if verify_totp(secret, totp_code):
         return user, False
 

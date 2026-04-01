@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     enable_terminal_logging: bool = True
     terminal_session_timeout: int = 3600  # 1 hour idle timeout
     terminal_command_logging: bool = True
-    allowed_origins: str = "https://visit-steven5090.ngrok.io,http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173"
+    allowed_origins: str = "https://visit-steven-homelab50.axionintelligence.co.uk,https://visit-steven5090.ngrok.io,http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173,http://192.168.101.21:5173"
 
     # JWT settings
     jwt_expire_hours: int = 4  # Short-lived access tokens

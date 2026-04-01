@@ -18,6 +18,7 @@ from app.services.auth_service import (
     check_session_anomaly,
     create_token,
     create_token_pair,
+    get_user,
     record_attempt,
     setup_2fa,
     enable_2fa,
@@ -111,12 +112,20 @@ async def login(body: LoginRequest, request: Request):
 
 @router.get("/me", response_model=UserInfo)
 async def me(user: dict = Depends(get_current_user)):
+    # Get full user data (get_current_user only returns username and role)
+    full_user = get_user(user["username"])
+    if not full_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
     # Check if password change is required
     change_required, reason = check_password_change_required(user["username"])
+
     return UserInfo(
         username=user["username"],
         role=user.get("role", "user"),
-        has_2fa=user.get("2fa_enabled", False),
+        has_2fa=full_user.get("2fa_enabled", False),
         password_change_required=change_required,
         password_change_reason=reason if change_required else None
     )
@@ -276,10 +285,12 @@ from app.services.device_service import (
 async def list_devices(user: dict = Depends(get_current_user)):
     """List all registered devices for current user."""
     devices = get_user_devices(user["username"])
+    # Get full user data for require_registered_device setting
+    full_user = get_user(user["username"])
     return DeviceListResponse(
         devices=devices,
         max_devices=5,
-        require_registered_device=user.get("require_registered_device", False)
+        require_registered_device=full_user.get("require_registered_device", False) if full_user else False
     )
 
 

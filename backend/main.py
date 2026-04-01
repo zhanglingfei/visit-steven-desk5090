@@ -62,11 +62,10 @@ import os
 from config import settings
 allow_origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
 
-# CORS - Allow all origins for WebSocket compatibility
-# The actual authentication is handled by the WebSocket endpoint itself
+# CORS - Restrict to configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
