@@ -9,12 +9,15 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import auth, metrics, terminal, system, power, health
+from app.services.geoip_service import init_geoip_on_startup
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize GeoIP service on startup
+    init_geoip_on_startup()
     yield
     from app.services.terminal_service import terminal_manager
     await terminal_manager.cleanup_all()

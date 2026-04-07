@@ -22,8 +22,14 @@ class Settings(BaseSettings):
     jwt_refresh_days: int = 7  # Longer-lived refresh tokens
 
     # Terminal security
-    terminal_dangerous_commands: str = "rm -rf,dd if=/dev/zero,mkfs,fdisk,format,>:\,curl.*|.*sh,wget.*|.*sh"
+    terminal_dangerous_commands: str = r"rm -rf,dd if=/dev/zero,mkfs,fdisk,format,>:\,curl.*|.*sh,wget.*|.*sh"
     terminal_max_commands_per_minute: int = 30
+
+    # GeoIP settings
+    maxmind_license_key: str = ""  # MaxMind GeoLite2 license key (free signup at maxmind.com)
+    geoip_enabled: bool = True  # Enable country-based access control
+    geoip_allowed_countries: str = "JP,CN"  # Comma-separated ISO country codes
+    geoip_fallback_ips: str = ""  # Additional IPs to always allow (comma-separated)
 
     @property
     def users_file_path(self) -> Path:

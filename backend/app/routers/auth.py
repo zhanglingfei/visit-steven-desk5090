@@ -29,6 +29,7 @@ from app.services.auth_service import (
     validate_password_strength,
 )
 from app.services.device_service import is_registered_device, register_device
+from app.services.geoip_service import check_ip_country
 
 router = APIRouter()
 
@@ -38,9 +39,18 @@ async def login(body: LoginRequest, request: Request):
     ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
 
+    # Check rate limit first
     error = check_rate_limit(ip, body.username)
     if error:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=error)
+
+    # Check geo-restriction (country-based access control)
+    geo_allowed, geo_reason = check_ip_country(ip)
+    if not geo_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: {geo_reason}",
+        )
 
     # Authenticate with optional 2FA
     user, requires_2fa = authenticate_with_2fa(body.username, body.password, body.totp_code)
@@ -135,6 +145,14 @@ async def me(user: dict = Depends(get_current_user)):
 async def setup_2fa_endpoint(body: Setup2FARequest, request: Request):
     """Start 2FA setup - returns QR code and backup codes."""
     ip = request.client.host if request.client else "unknown"
+
+    # Check geo-restriction
+    geo_allowed, geo_reason = check_ip_country(ip)
+    if not geo_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: {geo_reason}",
+        )
 
     error = check_rate_limit(ip, body.username)
     if error:
@@ -242,6 +260,14 @@ async def disable_2fa_endpoint(body: Disable2FARequest, request: Request):
 async def change_password_endpoint(body: ChangePasswordRequest, request: Request):
     """Change user password with complexity validation."""
     ip = request.client.host if request.client else "unknown"
+
+    # Check geo-restriction
+    geo_allowed, geo_reason = check_ip_country(ip)
+    if not geo_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: {geo_reason}",
+        )
 
     # Check rate limit
     error = check_rate_limit(ip, body.username)

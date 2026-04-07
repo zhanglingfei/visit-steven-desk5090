@@ -88,13 +88,12 @@ def is_password_complex(password: str) -> bool:
     valid, _ = validate_password_strength(password)
     return valid
 
-# Rate limiting state - adjusted for personal use
-_login_attempts: dict[str, list[float]] = {}  # ip -> timestamps
-_username_failures: dict[str, int] = {}  # username -> consecutive failures
-_RATE_LIMIT_WINDOW = 60  # 1 minute window
-_RATE_LIMIT_MAX = 5  # 5 requests per minute
-_LOCKOUT_THRESHOLD = 5  # 5 failed attempts before lockout
-_LOCKOUT_DURATION = 300  # 5 minute lockout
+# Import persistent security database
+from app.services.security_db_service import (
+    check_rate_limit as _check_rate_limit_db,
+    record_login_attempt as _record_login_attempt_db,
+    clear_failed_attempts as _clear_failed_attempts_db,
+)
 
 # Session fingerprinting for anomaly detection
 _session_fingerprints: dict[str, dict] = {}  # username -> {ip, user_agent, timestamp}
@@ -195,31 +194,17 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
 
 
 def check_rate_limit(ip: str, username: str) -> Optional[str]:
-    now = time.time()
-
-    # Check username lockout
-    if _username_failures.get(username, 0) >= _LOCKOUT_THRESHOLD:
-        return "Account temporarily locked. Try again later."
-
-    # Check IP rate limit
-    attempts = _login_attempts.get(ip, [])
-    attempts = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
-    _login_attempts[ip] = attempts
-
-    if len(attempts) >= _RATE_LIMIT_MAX:
-        return "Too many login attempts. Try again later."
-
-    return None
+    """Check rate limit using persistent database."""
+    return _check_rate_limit_db(ip, username)
 
 
 def record_attempt(ip: str, username: str, success: bool) -> None:
-    now = time.time()
-    _login_attempts.setdefault(ip, []).append(now)
+    """Record login attempt using persistent database."""
+    _record_login_attempt_db(ip, username, success)
 
     if success:
-        _username_failures.pop(username, None)
-    else:
-        _username_failures[username] = _username_failures.get(username, 0) + 1
+        # Clear failed attempts on successful login
+        _clear_failed_attempts_db(username)
 
 
 # ==================== 2FA Functions ====================
